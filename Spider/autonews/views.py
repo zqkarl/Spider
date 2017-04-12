@@ -1,5 +1,6 @@
 # coding=utf8
 from django.shortcuts import render
+from django.shortcuts import redirect
 from django.http import HttpResponse
 from object.responses import BaseResponse
 import schedule
@@ -8,7 +9,8 @@ import schedule
 
 
 def schedule_view(request):
-    return render(request, "schedule.html", )
+    jobs = schedule.get_runningjobs()
+    return render(request, "schedule.html", {"jobs": jobs})
 
 
 def schedule_start(request):
@@ -29,6 +31,22 @@ def schedule_stop(request):
     return HttpResponse(resp)
 
 
-def schedule_jobs(request):
-    jobs = schedule.get_runningjobs()
-    return HttpResponse(str(jobs))
+def job_remove(request):
+    id = request.GET.get("id_")
+    sche = schedule.get_scheduler()
+    sche.remove_job(id)
+    return redirect(schedule_view)
+
+
+def job_pause(request):
+    id = request.GET.get("id_")
+    sche = schedule.get_scheduler()
+    sche.pause_job(id)
+    return redirect(schedule_view)
+
+
+def job_resume(request):
+    id = request.GET.get("id_")
+    sche = schedule.get_scheduler()
+    sche.resume_job(id)
+    return redirect(schedule_view)

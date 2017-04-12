@@ -19,10 +19,11 @@ from autonews import views as newsview
 
 urlpatterns = [
     url(r'^admin/', admin.site.urls),
-    url(r'schedule/', newsview.schedule_view),
-    url(r'^start/', newsview.schedule_start, name="schedule_start"),
-    url(r'^stop/', newsview.schedule_stop, name="schedule_stop"),
-    url(r'^jobs/', newsview.schedule_jobs, name="jobs"),
+    url(r'schedule/$', newsview.schedule_view, name="schedule"),
+    url(r'^schedule/start/', newsview.schedule_start, name="schedule_start"),
+    url(r'^schedule/stop/', newsview.schedule_stop, name="schedule_stop"),
+    url(r'^job/del', newsview.job_remove, name="job_del"),
+    url(r'^job/pause', newsview.job_pause, name="job_pause"),
+    url(r'^job/resume', newsview.job_resume, name="job_resume"),
 ]
 
-# schedule.run()

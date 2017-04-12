@@ -1,11 +1,13 @@
 # coding=utf-8
+from __future__ import print_function
+
 """负责从主网址中爬取出需要的网址"""
 
 import datetime
 import logging
 import bs4
 import requests
-import os
+import tools.keywords
 from bs4 import BeautifulSoup
 
 from models import *
@@ -21,6 +23,7 @@ logger = logging.getLogger(__name__)
 
 
 def crawl(task):
+    """根据任务爬取内容的主函数"""
     assert isinstance(task, Task)
     header = {
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
@@ -45,40 +48,49 @@ def crawl(task):
             if r.status_code != 200:
                 raise requests.ConnectionError('网址连接失败')
 
-        content = r.text
+        html = r.text
 
+        code = "utf8"  # 用于下面对html进行操作
         # 编码判断(待改进)
         try:
-            content = content.encode(r.encoding).decode("utf8")
+            html = html.encode(r.encoding).decode("utf8")
         except UnicodeDecodeError:
-            content = content.encode(r.encoding).decode("GB18030")
+            html = html.encode(r.encoding).decode("GB18030")
+            code = "utf8"
         except UnicodeEncodeError:
-            content = content.encode("GB18030").decode("GB18030")
+            html = html.encode("GB18030").decode("GB18030")
+            code = "GB18030"
 
         logger.debug("网址%s \n"
                      "编码%s \n"
                      "返回内容%s \n"
-                     % (url, r.encoding, content))
-
-        soup = BeautifulSoup(content, "lxml")
+                     % (url, r.encoding, html))
 
         # TODO(qi): 分析每条网址并且根据模板识别内容，然后保存数据库并且发送
-        title, content = __recognize_by_model(soup, task)
-        if title is None or content is None or content is '' or title is '':
-            t, c = traversal(soup)
+        ret = __recognize_by_model(html, task, code)
+        title = ret.get("title")
+        content_html = ret.get("content_html")
+        content = ret.get("content")
+        if title is None or content_html is None or content_html is '' or title is '':
+            ret = traversal(html)
+            t = ret.get("title")
+            c = ret.get("content_html")
+            p = ret.get("content")
             if title is None or title is '':
                 title = t
-            if content is None or content is '':
-                content = c
+            if content_html is None or content_html is '':
+                content_html = c
+                content = p
         bf = BloomFilter()
         # bf.insert(url)
-        print title
-        print type(content)
+        print (title)
+        print (type(content))
         news = News()
         news.task = task
         news.url = url
         news.title = title
-        news.content = content
+        news.content = content_html
+        news.keywords = tools.keywords.analyse_keywords(content, 5)
         news.save()
 
 
@@ -125,16 +137,16 @@ def __crawl_urls(url):
                 newurl = newurl.replace("//", "/")
             newurl = newurl.replace("!!!", "://")
 
-            if newurl.find("http") is not -1:
+            if "http" in newurl:
                 url_o = URL.URL(newurl, unicode(tag.string))
 
                 if url_o.is_contenturl():
                     if not bf.isContains(newurl):
                         # 转跳到下步处理分析内容
                         hrefs.add(newurl)
-                        print "已采集新网址"+url_o.url_name
+                        print ("已采集新网址"+url_o.url_name)
                     else:
-                        print "该网址已采集过"
+                        print("该网址已采集过")
     log_hrefs = "已分析网址"+str(url)
     for h in hrefs:
         log_hrefs += "\r\n"
@@ -196,13 +208,12 @@ def __clean(soup):
     return soup
 
 
-def __recognize_by_model(soup, task):
+def __recognize_by_model(html, task, code):
     """根据模板筛选标题和内容"""
-
-    assert isinstance(soup, BeautifulSoup)
     assert isinstance(task, Task)
     title = ""
     content = ""
+    content_html = ""
     models = Model.objects.filter(task_id=task.id)
     for model in models:
         tag_name = model.tag_name
@@ -212,16 +223,48 @@ def __recognize_by_model(soup, task):
         if tag_attrs is not None and tag_attrs != "":
             attrs_dict = eval(tag_attrs)
         is_title = model.is_title
-        assert isinstance(is_title, int)
 
+        # 前后文截取
+        # html = html.encode("utf-8")
+        assert isinstance(html, unicode)
+        start = model.start_location
+        end = model.end_location
+        start_num = 0
+        end_num = len(html)
+        if start is not None and start != "":
+            start_num = html.find(start.decode(code))
+            if start_num == -1:
+                start_num = 0
+        if end is not None and end != "":
+            end_num = html.find(end.decode(code))
+            if end_num == -1:
+                end_num = len(html)
+        html = html[start_num:end_num]
+        try:
+            html = html.encode("utf8").decode("utf8")
+        except UnicodeDecodeError:
+            html = html.encode("utf8").decode("GB18030")
+        except UnicodeEncodeError:
+            html = html.encode("GB18030").decode("GB18030")
+
+        soup = BeautifulSoup(html)
         if is_title:
-            title = soup.find(name=tag_name, id=tag_id, attrs=attrs_dict).string
+            try:
+                title = soup.find(name=tag_name, id=tag_id, attrs=attrs_dict).string
+            except AttributeError:
+                print ("找不到标题")
         else:
             # TODO(qi): 需要提供图片
-            content_soups = soup.find_all(name=tag_name, attrs=attrs_dict)
-            for s in content_soups:
-                content += str(s)
-    return title, content
+            try:
+                content_soups = soup.find_all(name=tag_name, attrs=attrs_dict)
+                for s in content_soups:
+                    if str(s.string) is not None and "None" not in str(s.string):
+                        content += str(s.string)
+                    content_html += str(s)
+            except AttributeError:
+                print ("找不到内容")
+    result = {"title": title, "content": content, "content_html": content_html}
+    return result
 
 
 def __recognize(lines, line_max):
@@ -240,7 +283,7 @@ def __recognize(lines, line_max):
         tag_class = line.get('tag_class')
         content_len = line.get('content_len')
 
-        print tag_name
+        print (tag_name)
 
         # 如果是紧跟正文的图片则判断为需要的图片
         if content_flag is True and tag_name == 'img':
@@ -301,7 +344,7 @@ def __recognize(lines, line_max):
             # print row
             data_list.append(row)
             y, x = svm_read_problem(data_list)
-            print os.path.abspath('..')
+            # print (os.path.abspath('..'))
             m = svm_load_model('./Spider/autonews/content.model')
             p_labs, p_acc, p_vals = svm_predict(y, x, m)
             if p_labs[0] == 1.0:
@@ -311,12 +354,12 @@ def __recognize(lines, line_max):
                 content += line.get('content')
                 content_html += line.get('content_html')
 
-    # result = {"title": title, "content": content, "content_html": content_html}
-    return str(title), str(content_html)
+    result = {"title": title, "content": content, "content_html": content_html}
+    return result
 
 
-def traversal(soup):
-
+def traversal(html):
+    soup = BeautifulSoup(html, "lxml")
     lines = []
     # 遍历所有节点
     i = 0

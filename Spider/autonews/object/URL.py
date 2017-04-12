@@ -15,6 +15,7 @@ class URL(object):
     # content = ""
 
     def __init__(self, url_name, content):
+        # type: (object, object) -> object
         # assert isinstance(url_name, str)
         self.url_name = url_name  # url
         # assert isinstance(content, str)

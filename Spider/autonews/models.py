@@ -28,9 +28,11 @@ class Task(models.Model):
 @python_2_unicode_compatible
 class Model(models.Model):
     tag_name = models.CharField(max_length=255, blank=True, null=True)  # h1
+    start_location = models.CharField(u'起始位置', max_length=255, blank=True, null=True)
+    end_location = models.CharField(u'结束位置', max_length=255, blank=True, null=True)
     tag_id = models.CharField(max_length=255, blank=True, null=True)  # h1
     tag_attrs = models.CharField(max_length=255, blank=True, null=True)  # {"style":"text-indent: 2em;"}
-    is_title = models.BooleanField(u'标题', default=False)  # true为标题/false为正文
+    is_title = models.BooleanField(u'标题', default=False)  # true为标题/false为正文/70
     task = models.ForeignKey(Task)
 
     def __str__(self):
@@ -43,10 +45,11 @@ class Model(models.Model):
 
 @python_2_unicode_compatible
 class News(models.Model):
-    task = models.ForeignKey(Task, null=True)
+    task = models.ForeignKey(Task, verbose_name=u"任务", null=True)
     url = models.URLField()
-    title = models.TextField()
-    content = models.TextField()
+    title = models.TextField(u'标题')
+    content = models.TextField(u'内容')
+    keywords = models.CharField(u'关键词', max_length=255, null=True)
 
     def __str__(self):
         return self.title

@@ -1,20 +1,38 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-    <title>任务状态</title>
-</head>
-<body>
-<a href="{% url 'schedule_start' %}" target="_blank">开启任务</a>
-<a href="{% url 'schedule_stop' %}" target="_blank">关闭任务</a>
-<table>
-    <thead>
+{% extends "base.html" %}
 
+{% block title %}
+任务状态
+{% endblock title %}
+
+{% block content %}
+<a href="{% url 'schedule_start' %}" target="_blank">开启所有任务</a>
+<a href="{% url 'schedule_stop' %}" target="_blank">关闭任务</a>
+<table class="table">
+    <thead>
+        <tr>
+            <th>id</th>
+            <th>name</th>
+            <th>运行间隔</th>
+            <th>下次运行时间</th>
+            <th>max_instances</th>
+            <th>操作</th>
+        </tr>
     </thead>
     <tbody>
-
+    {% for job in jobs %}
+        <tr>
+            <td>{{job.id}}</td>
+            <td>{{job.name}}</td>
+            <td>{{job.trigger}}</td>
+            <td>{{job.next_run_time}}</td>
+            <td>{{job.max_instances}}</td>
+            <td>
+                <a href="{% url 'job_pause' %}?id_={{job.id}}">暂停</a>
+                <a href="{% url 'job_resume' %}?id_={{job.id}}">恢复</a>
+                <a href="{% url 'job_del' %}?id_={{job.id}}">删除</a>
+            </td>
+        </tr>
+    {% endfor %}
     </tbody>
 </table>
-</body>
-</html>
+{% endblock content %}

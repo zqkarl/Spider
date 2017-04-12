@@ -6,6 +6,7 @@ import MySQLdb
 import redis
 import url_spider
 from apscheduler.schedulers.background import BackgroundScheduler
+
 from apscheduler.jobstores.redis import RedisJobStore
 from django.conf import settings
 from django.core.cache import cache
@@ -26,14 +27,17 @@ def add_job():
     tasks = Task.objects.all()
     for task in tasks:
         seconds = task.seconds
-        scheduler.add_job(crawl_task, 'interval', seconds=seconds, args=[task])
-    scheduler.add_job(test, 'interval', seconds=2, id='my_job_id')
+        max_instances = task.thread_num
+        site_name = task.site_name
+        if task.switch:
+            scheduler.add_job(crawl_task, 'interval', seconds=seconds, max_instances=max_instances, args=[task],
+                              name=site_name)
+    scheduler.add_job(test, 'interval', minutes=2, max_instances=3, id='my_job_id')
     return scheduler
 
 
 def test():
-    print "ss"
-    time.sleep(1)
+    print "dsdsdsd"
 
 
 def crawl_task(task):
@@ -53,10 +57,11 @@ def stop():
 
 def get_runningjobs():
     jobs = scheduler.get_jobs()
-    out = ""
-    for job in jobs:
-        out += str(job)
-    return out
+    return jobs
+
+
+def get_scheduler():
+    return scheduler
 
 if __name__ == '__main__':
     scheduler = add_job()

@@ -1,0 +1,13 @@
+APScheduler == 3.3.1
+Django == 1.10.x
+MySQL-python == 1.2.3
+beautifulsoup4 == 4.5.3
+bitarray == 0.8.1
+bs4 == 0.0.1
+chardet == 2.3.0
+django-redis == 4.7.0
+futures == 3.0.5
+lxml == 3.4.3
+redis == 2.10.5
+requests == 2.12.4
+jieba == 0.38
