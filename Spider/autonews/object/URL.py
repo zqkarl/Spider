@@ -2,10 +2,12 @@
 
 from __future__ import division  # 计算浮点数
 import os
+from ..tools import file_lock
 import re
 
-from Spider.autonews.tools.svmutil import *
+from ..tools.svmutil import *
 
+url_model = svm_load_model(".\Spider\\autonews\url.model")
 
 class URL(object):
     """需要分析的URL的类"""
@@ -15,8 +17,6 @@ class URL(object):
     # content = ""
 
     def __init__(self, url_name, content):
-        # type: (object, object) -> object
-        # assert isinstance(url_name, str)
         self.url_name = url_name  # url
         # assert isinstance(content, str)
         self.content = content  # 锚文本
@@ -138,9 +138,10 @@ class URL(object):
         row = "0 1:%f 2:%f 3:%f 4:%f 5:%f 6:%f 7:%f" % (f1, f2, f3, f4d, f5d, f6, f7)
         data_list.append(row)
         y, x = svm_read_problem(data_list)
-        print os.path.abspath('..')
-        m = svm_load_model("./Spider/autonews/url.model")
-        p_labs, p_acc, p_vals = svm_predict(y, x, m)
+        # m = svm_load_model("./Spider/autonews/url.model")
+        # file_lock.lock(m)
+        p_labs, p_acc, p_vals = svm_predict(y, x, url_model)
+        # file_lock.unlock(m)
         if p_labs[0] == 1.0:
             print "nope"
             return False

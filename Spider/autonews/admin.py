@@ -1,4 +1,4 @@
-#encoding=utf8
+# encoding=utf8
 from django.contrib import admin
 from models import *
 
@@ -9,6 +9,14 @@ class NewsAdmin(admin.ModelAdmin):
     list_display = ('title', 'task', 'keywords', 'url')
     search_fields = ('title', 'task__task_name')
 
-admin.site.register(Task)
+
+class ModelInline(admin.TabularInline):
+    model = Model
+
+
+class TaskAdmin(admin.ModelAdmin):
+    inlines = [ModelInline]  # Inline
+
+admin.site.register(Task, TaskAdmin)
 admin.site.register(Model)
 admin.site.register(News, NewsAdmin)

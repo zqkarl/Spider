@@ -1,14 +1,15 @@
 # coding=utf8
 
 import time
+import sys
 import os
 import MySQLdb
 import redis
 import url_spider
 from apscheduler.schedulers.background import BackgroundScheduler
-
 from apscheduler.jobstores.redis import RedisJobStore
 from django.conf import settings
+from tools.svmutil import svm_load_model
 from django.core.cache import cache
 from models import *
 import logging
@@ -21,6 +22,7 @@ pool = redis.ConnectionPool(host=settings.REDIS["HOST"], port=settings.REDIS["PO
 store = RedisJobStore(connection_pool=pool)
 scheduler.add_jobstore(store, "redis")
 scheduler.start()
+print (os.path.abspath('..'))
 
 
 def add_job():
@@ -28,11 +30,11 @@ def add_job():
     for task in tasks:
         seconds = task.seconds
         max_instances = task.thread_num
-        site_name = task.site_name
+        task_name = task.task_name
         if task.switch:
             scheduler.add_job(crawl_task, 'interval', seconds=seconds, max_instances=max_instances, args=[task],
-                              name=site_name)
-    scheduler.add_job(test, 'interval', minutes=2, max_instances=3, id='my_job_id')
+                              name=task_name)
+    # scheduler.add_job(test, 'interval', minutes=2, max_instances=3, id='my_job_id')
     return scheduler
 
 
@@ -51,7 +53,6 @@ def run():
 
 
 def stop():
-    scheduler.remove_job('my_job_id')
     scheduler.shutdown()
 
 

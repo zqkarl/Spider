@@ -8,6 +8,7 @@ import logging
 import bs4
 import requests
 import tools.keywords
+import tools.newspublish
 from bs4 import BeautifulSoup
 
 from models import *
@@ -20,7 +21,7 @@ reload(sys)
 sys.setdefaultencoding('utf8')
 
 logger = logging.getLogger(__name__)
-
+content_model = svm_load_model(".\Spider\\autonews\content.model")
 
 def crawl(task):
     """根据任务爬取内容的主函数"""
@@ -81,8 +82,6 @@ def crawl(task):
             if content_html is None or content_html is '':
                 content_html = c
                 content = p
-        bf = BloomFilter()
-        # bf.insert(url)
         print (title)
         print (type(content))
         news = News()
@@ -92,6 +91,11 @@ def crawl(task):
         news.content = content_html
         news.keywords = tools.keywords.analyse_keywords(content, 5)
         news.save()
+        r = tools.newspublish.yuncaiji_publish(title, content_html, task.site_name, task.site_column, news.keywords)
+        print (r)
+        bf = BloomFilter()
+        bf.insert(url)
+
 
 
 def __crawl_urls(url):
@@ -275,6 +279,7 @@ def __recognize(lines, line_max):
     content_html = ''  # 存放原生html
 
     content_flag = False  # 上一条是否为正文，是的话为True，否的话为False
+    content_div = ""
     for line in lines:
         # print line.get('content')
         sequence = line.get('sequence')
@@ -282,8 +287,6 @@ def __recognize(lines, line_max):
         tag_id = line.get('tag_id')
         tag_class = line.get('tag_class')
         content_len = line.get('content_len')
-
-        print (tag_name)
 
         # 如果是紧跟正文的图片则判断为需要的图片
         if content_flag is True and tag_name == 'img':
@@ -345,8 +348,8 @@ def __recognize(lines, line_max):
             data_list.append(row)
             y, x = svm_read_problem(data_list)
             # print (os.path.abspath('..'))
-            m = svm_load_model('./Spider/autonews/content.model')
-            p_labs, p_acc, p_vals = svm_predict(y, x, m)
+            # m = svm_load_model('./Spider/autonews/content.model')
+            p_labs, p_acc, p_vals = svm_predict(y, x, content_model)
             if p_labs[0] == 1.0:
                 title += line.get('content')
             if p_labs[0] == 2.0:
@@ -354,7 +357,7 @@ def __recognize(lines, line_max):
                 content += line.get('content')
                 content_html += line.get('content_html')
 
-    result = {"title": title, "content": content, "content_html": content_html}
+    result = {"title": title, "content": content, "content_html": content_html, "test": content_div}
     return result
 
 
@@ -367,6 +370,7 @@ def traversal(html):
         line = {'sequence': i}
         i += 1
         if type(tag) == bs4.element.Tag:
+            line['tag'] = tag
             try:
                 # 标签有内容或者是p标签,并且标签的父节点没有p(因为只需要判断到p就可以了,里面的东西都要的)
                 if (tag.string is not None or tag.name == 'p') and tag.find_parent('p') is None:

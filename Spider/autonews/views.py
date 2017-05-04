@@ -26,6 +26,7 @@ def schedule_stop(request):
     resp = BaseResponse()
     try:
         schedule.stop()
+        reload(schedule)
     except Exception, e:
         resp.message = str(e)
     return HttpResponse(resp)

@@ -80,7 +80,7 @@ DATABASES = {
             'NAME': 'djspider',
             'USER': 'root',
             'PASSWORD': 'smghd',
-            'HOST': 'qisama.me',
+            'HOST': '139.196.104.246',
             'PORT': '3306',
             'TEST_CHARSET': 'utf8',
             'TEST_COLLATION': 'utf8_general_ci',

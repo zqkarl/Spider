@@ -2,9 +2,8 @@
 from __future__ import division  # 计算浮点数
 
 import re
-
-from Spider.autonews.tools.svmutil import *
-from spider.autonews import URL
+from ..tools.svmutil import *
+from ..object import URL
 
 
 def analyze(url):
