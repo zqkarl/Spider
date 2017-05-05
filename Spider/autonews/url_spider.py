@@ -91,10 +91,10 @@ def crawl(task):
         news.content = content_html
         news.keywords = tools.keywords.analyse_keywords(content, 5)
         news.save()
-        r = tools.newspublish.yuncaiji_publish(title, content_html, task.site_name, task.site_column, news.keywords)
-        print (r)
-        bf = BloomFilter()
-        bf.insert(url)
+        # r = tools.newspublish.yuncaiji_publish(title, content_html, task.site_name, task.site_column, news.keywords)
+        # print (r)
+        # bf = BloomFilter()
+        # bf.insert(url)
 
 
 
@@ -251,7 +251,12 @@ def __recognize_by_model(html, task, code):
         except UnicodeEncodeError:
             html = html.encode("GB18030").decode("GB18030")
 
-        soup = BeautifulSoup(html)
+
+        try:
+            soup = BeautifulSoup(html, "lxml")
+        except Exception:
+            print (type(html))
+            print (html)
         if is_title:
             try:
                 title = soup.find(name=tag_name, id=tag_id, attrs=attrs_dict).string
@@ -261,12 +266,15 @@ def __recognize_by_model(html, task, code):
             # TODO(qi): 需要提供图片
             try:
                 content_soups = soup.find_all(name=tag_name, attrs=attrs_dict)
-                for s in content_soups:
-                    if str(s.string) is not None and "None" not in str(s.string):
-                        content += str(s.string)
-                    content_html += str(s)
+                # for s in content_soups:
+                #     if str(s.string) is not None and "None" not in str(s.string):
+                #         content += s.get_text()
+                content_html = str(content_soups[0])
+                content = content_soups[0].get_text()
             except AttributeError:
-                print ("找不到内容")
+                print("找不到内容")
+            except TypeError:
+                print("找不到内容")
     result = {"title": title, "content": content, "content_html": content_html}
     return result
 
@@ -279,10 +287,11 @@ def __recognize(lines, line_max):
     content_html = ''  # 存放原生html
 
     content_flag = False  # 上一条是否为正文，是的话为True，否的话为False
-    content_div = ""
+    tags = []  # 存放所有Tag
     for line in lines:
         # print line.get('content')
         sequence = line.get('sequence')
+        tag = line.get('tag')
         tag_name = line.get('tag_name')
         tag_id = line.get('tag_id')
         tag_class = line.get('tag_class')
@@ -356,8 +365,9 @@ def __recognize(lines, line_max):
                 content_flag = True
                 content += line.get('content')
                 content_html += line.get('content_html')
+                tags.append(tag)
 
-    result = {"title": title, "content": content, "content_html": content_html, "test": content_div}
+    result = {"title": title, "content": content, "content_html": content_html, "tags": tags}
     return result
 
 
@@ -369,8 +379,8 @@ def traversal(html):
     for tag in soup.descendants:
         line = {'sequence': i}
         i += 1
+        line['tag'] = tag
         if type(tag) == bs4.element.Tag:
-            line['tag'] = tag
             try:
                 # 标签有内容或者是p标签,并且标签的父节点没有p(因为只需要判断到p就可以了,里面的东西都要的)
                 if (tag.string is not None or tag.name == 'p') and tag.find_parent('p') is None:
@@ -414,11 +424,27 @@ def traversal(html):
         if line.get('tag_name') is not None:
             lines.append(line)  # 在队列尾部插入新数据
 
-    return __recognize(lines, i)
+    result = __recognize(lines, i)
+    tags = result['tags']
+    if len(tags) > 0:
+        count = 0
+        last_parent = tags[0].parent
+        for t in tags:
+            if t not in last_parent.descendants and t is not None:
+                last_parent = last_parent.parent
+                count += 1
+            if count is 3:
+                last_parent = None
+                break
+        if last_parent is not None:
+            result['content_html'] = str(last_parent)
+            print ("success: "+str(last_parent))
 
+    return result
 
 if __name__ == '__main__':
     crawl(1)
+
     # __crawl_urls("http://www.sina.com.cn")
     # crawl_urls("http://www.163.com")
     # crawl_urls("http://www.qq.com")
