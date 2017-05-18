@@ -16,6 +16,7 @@ Including another URLconf
 from django.conf.urls import url
 from django.contrib import admin
 from autonews import views as newsview
+from autorecog import views as recogview
 
 urlpatterns = [
     url(r'^admin/', admin.site.urls),
@@ -25,5 +26,6 @@ urlpatterns = [
     url(r'^job/del', newsview.job_remove, name="job_del"),
     url(r'^job/pause', newsview.job_pause, name="job_pause"),
     url(r'^job/resume', newsview.job_resume, name="job_resume"),
+    url(r'^recognize/', recogview.news_recognize, name="recognize")
 ]
 

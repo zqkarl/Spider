@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'Spider.autonews',
+    'Spider.autorecog',
 ]
 
 MIDDLEWARE = [
@@ -81,6 +82,7 @@ DATABASES = {
             'USER': 'root',
             'PASSWORD': 'smghd',
             'HOST': '139.196.104.246',
+            #'HOST': 'qisama.me',
             'PORT': '3306',
             'TEST_CHARSET': 'utf8',
             'TEST_COLLATION': 'utf8_general_ci',
