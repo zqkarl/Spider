@@ -1,0 +1,5 @@
+jieba == 0.38
+requests == 2.12.4
+Django == 1.10.x
+bs4 == 0.0.1
+beautifulsoup4 == 4.5.3
