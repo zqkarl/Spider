@@ -6,7 +6,7 @@ import jieba.analyse
 
 def analyse_keywords(sentence, topK):
     """https://github.com/fxsjy/jieba/"""
-    keywords = jieba.analyse.extract_tags(sentence, topK)
+    keywords = jieba.analyse.extract_tags(sentence, topK+5)
     out = ""
     i = 0
     for keyword in keywords:
@@ -16,7 +16,7 @@ def analyse_keywords(sentence, topK):
                 out += keyword
                 out += " "
                 i += 1
-                if i is 5:
+                if i is topK:
                     break
     return out
 

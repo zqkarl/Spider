@@ -45,7 +45,7 @@ MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
-    'django.middleware.csrf.CsrfViewMiddleware',
+    # 'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
@@ -95,10 +95,11 @@ DATABASES = {
 CACHES = {
     'default': {
         'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': 'redis://qisama.me:6379/0',
+        # 'LOCATION': 'redis://qisama.me:6379/0',
+        'LOCATION': 'redis://172.27.61.181:6379/0',
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
-            "PASSWORD": "7ad335c26312deda6cabf18564ef00c7",
+            # "PASSWORD": "7ad335c26312deda6cabf18564ef00c7",
         },
     },
 }
@@ -107,9 +108,9 @@ CUBES_REDIS_TIMEOUT = 60*60
 NEVER_REDIS_TIMEOUT = 365*24*60*60
 
 REDIS = {
-    'HOST': 'qisama.me',
+    'HOST': '172.27.61.181',
     'PORT': '6379',
-    'PASSWORD': '7ad335c26312deda6cabf18564ef00c7',
+    # 'PASSWORD': '7ad335c26312deda6cabf18564ef00c7',
 }
 
 # Password validation
@@ -144,6 +145,7 @@ USE_L10N = True
 
 USE_TZ = True
 
+# APPEND_SLASH = False
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/1.10/howto/static-files/

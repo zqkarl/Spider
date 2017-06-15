@@ -17,6 +17,8 @@ class ModelInline(admin.TabularInline):
 class TaskAdmin(admin.ModelAdmin):
     inlines = [ModelInline]  # Inline
 
+
 admin.site.register(Task, TaskAdmin)
 admin.site.register(Model)
 admin.site.register(News, NewsAdmin)
+admin.site.register(Publisher)

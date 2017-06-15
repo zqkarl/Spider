@@ -49,4 +49,11 @@ def news_recognize(request):
         record.content = str(traceback.format_exc(e))
         record.ip = ip
         record.save()
-    return HttpResponse(resp, content_type="application/json")
+    return HttpResponse(resp, content_type="application/json;charset=UTF-8")
+
+
+def get_keywords(request):
+    content = request.POST.get("content")
+    topK = request.GET.get("topK")
+    keys = keywords.analyse_keywords(content, int(topK))
+    return HttpResponse(keys)

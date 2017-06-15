@@ -11,3 +11,5 @@ lxml == 3.4.3
 redis == 2.10.5
 requests == 2.12.4
 jieba == 0.38
+
+autorecog(需与本应用并列放置）

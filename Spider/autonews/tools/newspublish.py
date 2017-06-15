@@ -5,11 +5,10 @@ import datetime
 import mod_config
 
 
-def yuncaiji_publish(title, content, news_site, news_column, tags, news_type="text-image"):
+def yuncaiji_publish(post_url, title, content, news_site, news_column, tags, news_type="text-image"):
     params = {"title": title, "content": content, "newsSite": news_site, "newsColumn": news_column,
               "newsType": news_type, "newsdate": datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
               "source": news_site, "tags": tags}
-    post_url = mod_config.get_config("post", key="yuncaiji_url")
     r = requests.post(post_url, params)
     return r.text
 

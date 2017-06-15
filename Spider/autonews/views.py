@@ -17,7 +17,7 @@ def schedule_start(request):
     resp = BaseResponse()
     try:
         schedule.run()
-    except Exception, e:
+    except Exception as e:
         resp.message = str(e)
     return HttpResponse(resp)
 
@@ -27,7 +27,7 @@ def schedule_stop(request):
     try:
         schedule.stop()
         reload(schedule)
-    except Exception, e:
+    except Exception as e:
         resp.message = str(e)
     return HttpResponse(resp)
 

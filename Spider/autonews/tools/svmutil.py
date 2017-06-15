@@ -160,7 +160,7 @@ def svm_train(arg1, arg2=None, arg3=None):
 			print("Cross Validation Squared correlation coefficient = %g" % SCC)
 			return MSE
 		else:
-			print("Cross Validation Accuracy = %g%%" % ACC)
+			# print("Cross Validation Accuracy = %g%%" % ACC)
 			return ACC
 	else:
 		m = libsvm.svm_train(prob, param)

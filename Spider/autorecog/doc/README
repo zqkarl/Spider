@@ -1,0 +1,42 @@
+================================
+            安装前准备
+================================
+1、确保requirements.txt下的所需的库已安装
+2、编译libsvm
+a)libsvm下载地址：http://www.csie.ntu.edu.tw/~cjlin/libsvm/ 建议版本为3.21
+b)cd libsvm-3.21下
+如果是Unix的系统，输入"make",得到libsvm.so.2,将其拷至autonews和autorecog的根目录下
+如果是Windows的系统，输入"Makefile",得到libsvm.dll，将其拷至autonews/windows和autorecog/windows的下
+3、注释掉项目setting中的crsf中间件
+4、在setting.py中加入APPEND_SLASH = False(这个还是不要加比较好)
+
+======================================
+                API説明
+======================================
+1、网页自动识别
+API功能：根据网址自动识别出新闻标题、内容和关键词。
+接口名称：recognize
+方法：GET
+示例：139.196.104.246:9001/recognize?url=http://auto.sohu.com/20160507/n448166249.shtml
+入参说明
+参数名	参数类型	是否必填	说明
+url	    String	是	    需要识别的网址
+返回参数说明
+参数名	    参数类型	说明
+status	    int	    状态码1-成功 -9-重试 -99-出错
+message	    string	返回信息
+content	    String	新闻纯文本内容
+keywords    string	新闻关键词
+content_html	Date	新闻html标签内容
+title	    Date	新闻标题
+
+2、关键词分析
+API功能：根据网址自动识别出新闻标题、内容和关键词。
+接口名称：keyword
+方法：POST
+示例：139.196.104.246:9001/keyword?topK=5
+参数名	参数类型	是否必填	说明
+topK	String	是	    需要得到的关键词数量（get参数）
+content String  是       需要分析的文本
+
+3、url分析

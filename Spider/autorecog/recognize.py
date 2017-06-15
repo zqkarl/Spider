@@ -11,15 +11,12 @@ import sys
 reload(sys)
 sys.setdefaultencoding('utf8')
 logger = logging.getLogger(__name__)
-print (path.abspath('.'))
+
 dirname = path.dirname(path.abspath(__file__))
 if sys.platform == 'win32':
     content_model = svm_load_model(path.join(dirname, ".\content.model"))
 else:
     content_model = svm_load_model(path.join(dirname, './content.model'))
-# content_model = svm_load_model(".\Spider\\autorecog\content.model")
-# content_model = svm_load_model(".\content.model")
-
 
 def auto_recognize(url):
     header = {
@@ -260,7 +257,10 @@ def traversal(html):
         if last_parent is not None:
             result['content_html'] = str(last_parent)
             # print ("success: "+str(last_parent))
-        result['content'] = last_parent.get_text(strip=True)
+        try:
+            result['content'] = last_parent.get_text(strip=True)
+        except AttributeError:
+            pass
     return result
 
 

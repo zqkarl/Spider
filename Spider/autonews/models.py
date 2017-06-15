@@ -7,6 +7,20 @@ from django.db import models
 
 
 @python_2_unicode_compatible
+class Publisher(models.Model):
+    name = models.CharField(u'发布名称', max_length=255)
+    url = models.URLField(u'目标地址')
+    type = models.CharField(choices=(('yuncaiji_publish', '云采集'),), max_length=255)
+
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        verbose_name = '新闻发布'
+        verbose_name_plural = '新闻发布'
+
+
+@python_2_unicode_compatible
 class Task(models.Model):
     task_name = models.CharField(u'任务名称', max_length=255)
     site_name = models.CharField(u'站点名称', max_length=255)
@@ -15,6 +29,7 @@ class Task(models.Model):
     thread_num = models.IntegerField(u'线程数', default=1)
     seconds = models.IntegerField(u'间隔时间(s)', default=600000)
     switch = models.BooleanField(u'是否开启', default=True)
+    publisher = models.ManyToManyField(Publisher, verbose_name="发布方式", null=True, blank=True)
 
     def __str__(self):  # 在Python3中用 __str__ 代替 __unicode__
         return self.task_name
