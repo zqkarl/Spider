@@ -25,7 +25,9 @@ class Task(models.Model):
     task_name = models.CharField(u'任务名称', max_length=255)
     site_name = models.CharField(u'站点名称', max_length=255)
     site_column = models.CharField(u'栏目', max_length=255)
-    site_url = models.CharField(u'地址', max_length=255)
+    site_url = models.CharField(u'地址', max_length=255, help_text="网址中的日期部分用'（date,样式,提前的天数）'代替,"
+                                                                 "例如(date,yyyy-MM/dd,0),表示为当天的日期，格式为2015-08/27，"
+                                                                 "需要循环遍历的地方（loop,首相,末相,相数), 例如(loop,1,10,2)表明循环从1开始到10结束，间隔为2")
     thread_num = models.IntegerField(u'线程数', default=1)
     seconds = models.IntegerField(u'间隔时间(s)', default=600000)
     switch = models.BooleanField(u'是否开启', default=True)

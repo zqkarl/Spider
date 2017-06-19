@@ -7,7 +7,7 @@ import datetime
 import logging
 import bs4
 import requests
-import tools.keywords
+import re
 import tools.newspublish
 from bs4 import BeautifulSoup
 
@@ -16,6 +16,7 @@ from .tools.bloomfilter import BloomFilter
 from Spider.autonews.tools.svmutil import *
 from .object import URL
 from ..autorecog.recognize import *
+from ..autorecog.keywords import analyse_keywords
 
 import sys
 reload(sys)
@@ -40,8 +41,38 @@ def crawl(task):
         'User-Agent': 'Mozilla/5.0 (Windows NT 6.3; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/43.0.235'
     }
 
-    href = __crawl_urls(task.site_url)  # 获取所有需要采集的地址
-    for url in href:
+    # 对复杂url进行分析处理
+    site_url = task.site_url
+    site_urls = []
+    matchObj1 = re.match(r'.*\(date,(.*?),(.*?)\).*', site_url, re.M | re.I)
+    if matchObj1:
+        patten = matchObj1.group(1)
+        lead = matchObj1.group(2)
+        patten = patten.replace("yyyy", "%Y")
+        patten = patten.replace("MM", "%m")
+        patten = patten.replace("dd", "%d")
+        patten = patten.replace("HH", "%H")
+        patten = patten.replace("mm", "%M")
+        patten = patten.replace("ss", "%S")
+        delta = datetime.timedelta(days=int(lead))
+        now = datetime.datetime.now() - delta
+        patterned_time = now.strftime(patten)  # 计算完偏移量的日期
+        site_url = re.sub(r"\(date,(.*?)\)", patterned_time, site_url)
+
+    matchObj = re.match(r'.*\(loop,(.*?),(.*?),(.*?)\).*', site_url, re.M | re.I)
+    if matchObj:
+        first_num = int(matchObj.group(1))
+        last_num = int(matchObj.group(2))
+        number_of_phases = int(matchObj.group(3))
+        for i in range(first_num, last_num, number_of_phases):
+            u = re.sub(r"\(loop,(.*?),(.*?),(.*?)\)", str(i), site_url)
+            site_urls.append(u)
+
+    hrefs = []
+    for u in site_urls:
+        href = __crawl_urls(u)  # 获取所有需要采集的地址
+        hrefs.extend(href)
+    for url in hrefs:
         try:
             r = requests.get(url, headers=header)
             logger.info('开始请求%s，返回状态码为%d,当前时间为%s' % (url, r.status_code, datetime.datetime.now()))
@@ -96,7 +127,7 @@ def crawl(task):
             news.url = url
             news.title = title
             news.content = content_html
-            news.keywords = tools.keywords.analyse_keywords(content, 5)
+            news.keywords = analyse_keywords(content, 5)
             news.save()
             publishers = task.publisher.all()
             print (type(publishers))
@@ -141,13 +172,24 @@ def __crawl_urls(url):
     bf = BloomFilter()
     for tag in t:
         if tag.get("href") is not None:
-            newurl = tag.get("href")
-            if str(tag.get("href")).startswith("/") or not str(tag.get("href")).startswith("http"):
-                if newurl.lower().find("javascript") is -1:
-                    end = url.find("/", 8)
-                    if end is -1:
-                        end = len(url)
-                    newurl = url[:end] + "/" + str(tag["href"])
+            newurl = str(tag.get("href")).strip()
+            # 处理不是http开头的各种情况,将相对路径拼接成绝对路径
+            if not newurl.startswith("http") and newurl.lower().find("javascript") is -1:
+                domain = re.match(r'http(s)?://(.*/)', url, re.M | re.I).group()  # 拿到当前目录
+                if newurl.startswith("/"):
+                    newurl = domain + newurl
+                elif newurl.startswith("./"):
+                    newurl.replace("./","")
+                    newurl = domain + newurl
+                elif newurl.startswith("../"):
+                    count = newurl.count("../")
+                    while count>0:
+                        domain = domain[:len(domain) - 1]
+                        domain = re.match(r'http(s)?://(.*/)', domain, re.M | re.I).group()
+                        count -= 1
+                    newurl = domain + newurl.replace("../", "")
+                else: # 剩下的”content_234.html"这种情况
+                    newurl = domain + newurl
 
             # 清理url中最后的#，以及当中的多个///的情况
             newurl = newurl.partition("#")[0]
@@ -155,6 +197,10 @@ def __crawl_urls(url):
             while newurl.find("//") is not -1:
                 newurl = newurl.replace("//", "/")
             newurl = newurl.replace("!!!", "://")
+
+            #TODO 错误识别“http://newspaper.jfdaily.com/xwcb/resfiles/2017-06/19/A0120170619S.pdf”临时处理，以后加（下次看到的话）
+            if newurl.find(".pdf") != -1:
+                continue
 
             if "http" in newurl:
                 url_o = URL.URL(newurl, unicode(tag.string))
@@ -268,9 +314,9 @@ def __recognize_by_model(html, task, code):
 
 
         try:
-            soup = BeautifulSoup(html, "lxml")
-        except Exception:
-            print (type(html))
+            soup = BeautifulSoup(html, "html.parser")
+        except Exception as e:
+            print (e)
             print (html)
         if is_title:
             try:
@@ -280,12 +326,16 @@ def __recognize_by_model(html, task, code):
         else:
             # TODO(qi): 需要提供图片
             try:
-                content_soups = soup.find_all(name=tag_name, attrs=attrs_dict)
-                # for s in content_soups:
-                #     if str(s.string) is not None and "None" not in str(s.string):
-                #         content += s.get_text()
-                content_html = str(content_soups[0])
-                content = content_soups[0].get_text()
+                if tag_name is not u'' and attrs_dict is not {}:
+                    content_soups = soup.find_all(name=tag_name, attrs=attrs_dict)
+                    # for s in content_soups:
+                    #     if str(s.string) is not None and "None" not in str(s.string):
+                    #         content += s.get_text()
+                    content_html = str(content_soups[0])
+                    content = content_soups[0].get_text()
+                else:
+                    content_html = str(soup)
+                    content = soup.get_text()
             except AttributeError:
                 print("找不到内容")
             except TypeError:

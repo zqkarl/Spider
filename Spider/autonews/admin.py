@@ -15,6 +15,7 @@ class ModelInline(admin.TabularInline):
 
 
 class TaskAdmin(admin.ModelAdmin):
+    list_display = ('task_name', 'switch')
     inlines = [ModelInline]  # Inline
 
 
