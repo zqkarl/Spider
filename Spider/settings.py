@@ -95,11 +95,11 @@ DATABASES = {
 CACHES = {
     'default': {
         'BACKEND': 'django_redis.cache.RedisCache',
-        # 'LOCATION': 'redis://qisama.me:6379/0',
-        'LOCATION': 'redis://172.27.61.181:6379/0',
+        'LOCATION': 'redis://qisama.me:6379/0',
+        # 'LOCATION': 'redis://172.27.61.181:6379/0',
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
-            # "PASSWORD": "7ad335c26312deda6cabf18564ef00c7",
+            "PASSWORD": "7ad335c26312deda6cabf18564ef00c7",
         },
     },
 }

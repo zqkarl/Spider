@@ -33,7 +33,7 @@ def add_job():
         task_name = task.task_name
         if task.switch:
             scheduler.add_job(crawl_task, 'interval', seconds=seconds, max_instances=max_instances, args=[task],
-                              name=task_name)
+                              name=task_name, jobstore="redis")
     # scheduler.add_job(test, 'interval', minutes=2, max_instances=3, id='my_job_id')
     return scheduler
 

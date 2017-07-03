@@ -4,10 +4,13 @@ from __future__ import division  # 计算浮点数
 import os
 from ..tools import file_lock
 import re
-
+import sys
+reload(sys)
+sys.setdefaultencoding('utf8')
 from ..tools.svmutil import *
 
-url_model = svm_load_model(".\Spider\\autonews\url.model")
+dirname = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+url_model = svm_load_model(os.path.join(dirname, "url.model"))
 
 class URL(object):
     """需要分析的URL的类"""

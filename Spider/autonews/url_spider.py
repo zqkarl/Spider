@@ -24,6 +24,7 @@ sys.setdefaultencoding('utf8')
 
 logger = logging.getLogger(__name__)
 dirname = path.dirname(path.abspath(__file__))
+# 适配不同平台加载模型内容
 if sys.platform == 'win32':
     content_model = svm_load_model(path.join(dirname, ".\content.model"))
 else:
@@ -40,6 +41,9 @@ def crawl(task):
         'Connection': 'keep-alive',
         'User-Agent': 'Mozilla/5.0 (Windows NT 6.3; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/43.0.235'
     }
+    cookie = ""
+    if task.cookie is not None and task.cookie != "":
+        cookie = dict(task.cookie)
 
     # 对复杂url进行分析处理
     site_url = task.site_url
@@ -68,13 +72,21 @@ def crawl(task):
             u = re.sub(r"\(loop,(.*?),(.*?),(.*?)\)", str(i), site_url)
             site_urls.append(u)
 
+    if len(site_urls) is 0:
+        site_urls.append(site_url)
     hrefs = []
-    for u in site_urls:
-        href = __crawl_urls(u)  # 获取所有需要采集的地址
-        hrefs.extend(href)
+    url_model = UrlModel.objects.filter(task=task)
+    if len(url_model) is 0:  # 判断url是否有模板
+        for u in site_urls:
+            href = __crawl_urls(u, cookie)  # 获取所有需要采集的地址
+            hrefs.extend(href)
+    else:
+        for u in site_urls:
+            href = __crawl_urls_by_model(url_model, u, cookie)
+            hrefs.extend(href)
     for url in hrefs:
         try:
-            r = requests.get(url, headers=header)
+            r = requests.get(url, headers=header, cookies=cookie)
             logger.info('开始请求%s，返回状态码为%d,当前时间为%s' % (url, r.status_code, datetime.datetime.now()))
 
             # 如果请求失败重试三次
@@ -82,7 +94,7 @@ def crawl(task):
                 i = 0
                 while i < 3 and r.status_code != 200:
                     logger.info('正在重试第%d次' % (i + 1))
-                    r = requests.get(url, headers=header)
+                    r = requests.get(url, headers=header, cookies=cookie)
                     i += 1
                 if r.status_code != 200:
                     raise requests.ConnectionError('网址连接失败'+url)
@@ -120,6 +132,7 @@ def crawl(task):
                 if content_html is None or content_html is '':
                     content_html = c
                     content = p
+            content_html = __convert_img(content_html, str(url))  # 将文中的图片的相对路径转换为绝对路径
             print (title)
             print (type(content))
             news = News()
@@ -131,18 +144,19 @@ def crawl(task):
             news.save()
             publishers = task.publisher.all()
             print (type(publishers))
-            for publisher in publishers:
-                publisher_type = publisher.type
-                publisher_url = publisher.url
-                r = eval("tools.newspublish."+publisher_type+"(publisher_url, title, content_html, task.site_name, task.site_column, news.keywords)")
-                print (r)
-            # bf = BloomFilter()
-            # bf.insert(url)
+            if title is not None and content_html is not None and content_html is not '' and title is not '':
+                for publisher in publishers:
+                    publisher_type = publisher.type
+                    publisher_url = publisher.url
+                    r = eval("tools.newspublish."+publisher_type+"(publisher_url, title, content_html, task.site_name, task.site_column, news.keywords)")
+                    print (r)
+            bf = BloomFilter()
+            bf.insert(url)
         except Exception as e:
             print (e)
 
 
-def __crawl_urls(url):
+def __crawl_urls(url, cookie):
     """分析URL下所有可以采集的URL
     :param url:需要分析的URL
     :return set
@@ -152,9 +166,9 @@ def __crawl_urls(url):
         'Accept-Encoding': 'gzip, deflate, sdch',
         'Accept-Language': 'zh-CN,zh;q=0.8',
         'Connection': 'keep-alive',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 6.3; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/43.0.235'
+        'User-Agent': 'Mozilla/5.0 (Windows NT 6.3; WOW64) AppleWebKit/537.36 (KHT ML, like Gecko) Chrome/43.0.235'
     }
-    r = requests.get(url, headers=header)
+    r = requests.get(url, headers=header, cookies=cookie)
     content = r.text
     # print r.encoding
     # TODO(qi): 解析编码方式还是不太好，虽然一般够用了，下次有更好的解决方案需要替换掉这段
@@ -212,6 +226,118 @@ def __crawl_urls(url):
                         print ("已采集新网址"+url_o.url_name)
                     else:
                         print("该网址已采集过")
+    log_hrefs = "已分析网址"+str(url)
+    for h in hrefs:
+        log_hrefs += "\r\n"
+        log_hrefs += h
+    logger.info(log_hrefs)
+    return hrefs
+
+
+def __crawl_urls_by_model(url_model, url, cookie):
+    """通过模板来获取网址"""
+    assert isinstance(url_model, UrlModel)
+    start_location = url_model.start_location
+    end_location = url_model.end_location
+    include_word = url_model.include_words
+    include_words = None
+    if include_word is not u"":
+        include_words = include_word.split(";")
+    exclude_word = url_model.exclude_words
+    exclude_words = None
+    if exclude_word is not u"":
+        exclude_words = exclude_word.split(";")
+    hrefs = set('')
+    bf = BloomFilter()
+
+    header = {
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Encoding': 'gzip, deflate, sdch',
+        'Accept-Language': 'zh-CN,zh;q=0.8',
+        'Connection': 'keep-alive',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 6.3; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/43.0.235'
+    }
+    r = requests.get(url, headers=header, cookies=cookie)
+    content = r.text
+    code = r.encoding
+    try:
+        content = content.encode(r.encoding).decode("utf8")
+    except UnicodeDecodeError:
+        content = content.encode(r.encoding).decode("GB18030")
+    except UnicodeEncodeError:
+        content = content.encode("GB18030").decode("GB18030")
+        code = "GB18030"
+
+    start_num = 0
+    end_num = len(content)
+    if start_location is not None and start_location != "":
+        start_num = content.find(start_location)
+        if start_num == -1:
+            start_num = 0
+    if end_location is not None and end_location != "":
+        end_num = content.find(end_location, start_num)
+        if end_num == -1:
+            end_num = len(content)
+    content = content[start_num:end_num]
+
+    soup = BeautifulSoup(content, "html.parser")
+    a_tags = soup.find_all("a")
+
+    for tag in a_tags:
+        if tag.get("href") is not None:
+            newurl = str(tag.get("href")).strip()
+            newurl = newurl.replace("\\","/")
+            # 处理不是http开头的各种情况,将相对路径拼接成绝对路径
+            if not newurl.startswith("http") and newurl.lower().find("javascript") is -1:
+                domain = re.match(r'http(s)?://(.*/)', url, re.M | re.I).group()  # 拿到当前目录
+                if newurl.startswith("/"):
+                    newurl = domain + newurl
+                elif newurl.startswith("./"):
+                    newurl.replace("./","")
+                    newurl = domain + newurl
+                elif newurl.startswith("../"):
+                    count = newurl.count("../")
+                    while count>0:
+                        domain = domain[:len(domain) - 1]
+                        domain = re.match(r'http(s)?://(.*/)', domain, re.M | re.I).group()
+                        count -= 1
+                    newurl = domain + newurl.replace("../", "")
+                else: # 剩下的”content_234.html"这种情况
+                    newurl = domain + newurl
+
+            # 清理url中最后的#，以及当中的多个///的情况
+            newurl = newurl.partition("#")[0]
+            newurl = newurl.replace("://", "!!!")
+            while newurl.find("//") is not -1:
+                newurl = newurl.replace("//", "/")
+            newurl = newurl.replace("!!!", "://")
+
+            # url过滤条件
+            continue_flag = False
+            if include_words is not None and len(include_words) is not 0:
+                for word in include_words:
+                    if newurl.find(word) is -1:
+                        continue_flag = True
+                        break
+            if exclude_words is not None and len(exclude_words) is not 0:
+                for word in exclude_words:
+                    if newurl.find(word) is not -1:
+                        continue_flag = True
+                        break
+            if continue_flag:
+                continue
+
+            # TODO 错误识别“http://newspaper.jfdaily.com/xwcb/resfiles/2017-06/19/A0120170619S.pdf”临时处理，以后加（以后高兴加的话）
+            if newurl.find(".pdf") != -1:
+                continue
+
+            if "http" in newurl:
+                if not bf.isContains(newurl):
+                    # 转跳到下步处理分析内容
+                    hrefs.add(newurl)
+                    print("已采集新网址" + newurl)
+                else:
+                    print("该网址已采集过")
     log_hrefs = "已分析网址"+str(url)
     for h in hrefs:
         log_hrefs += "\r\n"
@@ -301,7 +427,7 @@ def __recognize_by_model(html, task, code):
             if start_num == -1:
                 start_num = 0
         if end is not None and end != "":
-            end_num = html.find(end.decode(code))
+            end_num = html.find(end.decode(code), start_num)
             if end_num == -1:
                 end_num = len(html)
         html = html[start_num:end_num]
@@ -331,11 +457,11 @@ def __recognize_by_model(html, task, code):
                     # for s in content_soups:
                     #     if str(s.string) is not None and "None" not in str(s.string):
                     #         content += s.get_text()
-                    content_html = str(content_soups[0])
-                    content = content_soups[0].get_text()
+                    content_html += str(content_soups[0])
+                    content += content_soups[0].get_text()
                 else:
-                    content_html = str(soup)
-                    content = soup.get_text()
+                    content_html += str(soup)
+                    content += soup.get_text()
             except AttributeError:
                 print("找不到内容")
             except TypeError:
@@ -506,6 +632,46 @@ def __recognize_by_model(html, task, code):
 #             print ("success: "+str(last_parent))
 #
 #     return result
+
+def __convert_img(content_html, url):
+    """
+    将文章中的相对图片路径转换为绝对路径（如果有的化）
+    :param content_html: HTML版的正文
+    :param url: 文章的地址
+    :return content: 将修改完的文章替换
+    """
+    assert isinstance(content_html, str)
+    assert isinstance(url, str)
+    try:
+        soup = BeautifulSoup(content_html, "html.parser")
+    except Exception as e:
+        print ("处理图片地址转换失败")
+        return content_html
+    imgs = soup.find_all(name="img")
+    for img in imgs:
+        if img.get("src") is not None:
+            src = str(img.get("src")).strip()
+            src = src.replace("\\","/")
+            # 处理不是http开头的各种情况,将相对路径拼接成绝对路径
+            if not src.startswith("http") and src.lower().find("javascript") is -1:
+                domain = re.match(r'http(s)?://(.*/)', url, re.M | re.I).group()  # 拿到当前目录
+                if src.startswith("/"):
+                    src = domain + src
+                elif src.startswith("./"):
+                    src.replace("./", "")
+                    src = domain + src
+                elif src.startswith("../"):
+                    count = src.count("../")
+                    while count>0:
+                        domain = domain[:len(domain) - 1]
+                        domain = re.match(r'http(s)?://(.*/)', domain, re.M | re.I).group()
+                        count -= 1
+                    src = domain + src.replace("../", "")
+                else:  # 剩下的”content_234.html"这种情况
+                    src = domain + src
+                img['src'] = src
+    return str(soup)
+
 
 if __name__ == '__main__':
     crawl(1)
