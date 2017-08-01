@@ -1,4 +1,6 @@
 # encoding=utf8
+import schedule
+from apscheduler.jobstores.base import JobLookupError
 from django.contrib import admin
 from models import *
 
@@ -30,6 +32,16 @@ class TaskAdmin(admin.ModelAdmin):
         }])
     inlines = [ModelInline, UrlModelInline]  # Inline
 
+    def save_model(self, request, obj, form, change):
+        if obj.switch:
+            sche = schedule.get_scheduler()
+            try:
+                sche.remove_job(str(obj.id))
+            except JobLookupError:
+                pass
+            sche.add_job(schedule.crawl_task, 'interval', id=str(obj.id), seconds=obj.seconds, max_instances=obj.thread_num,
+                         args=[obj], name=obj.task_name, jobstore="redis")
+        obj.save()
 
 
 admin.site.register(Task, TaskAdmin)

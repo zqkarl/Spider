@@ -82,7 +82,7 @@ def crawl(task):
             hrefs.extend(href)
     else:
         for u in site_urls:
-            href = __crawl_urls_by_model(url_model, u, cookie)
+            href = __crawl_urls_by_model(url_model[0], u, cookie)
             hrefs.extend(href)
     for url in hrefs:
         try:

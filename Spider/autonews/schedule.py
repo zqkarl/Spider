@@ -1,9 +1,7 @@
 # coding=utf8
 
 import time
-import sys
 import os
-import MySQLdb
 import redis
 import url_spider
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -19,6 +17,7 @@ logging.basicConfig()
 scheduler = BackgroundScheduler()
 pool = redis.ConnectionPool(host=settings.REDIS["HOST"], port=settings.REDIS["PORT"],
                                 password=settings.REDIS.get("PASSWORD"))
+# pool = redis.ConnectionPool(host='172.27.61.181', port='6379')
 store = RedisJobStore(connection_pool=pool)
 scheduler.add_jobstore(store, "redis")
 scheduler.start()
@@ -28,13 +27,16 @@ print (os.path.abspath('..'))
 def add_job():
     tasks = Task.objects.all()
     for task in tasks:
-        seconds = task.seconds
-        max_instances = task.thread_num
-        task_name = task.task_name
-        if task.switch:
-            scheduler.add_job(crawl_task, 'interval', seconds=seconds, max_instances=max_instances, args=[task],
-                              name=task_name, jobstore="redis")
-    # scheduler.add_job(test, 'interval', minutes=2, max_instances=3, id='my_job_id')
+        try:
+            seconds = task.seconds
+            max_instances = task.thread_num
+            task_name = task.task_name
+            if task.switch:
+                scheduler.add_job(crawl_task, 'interval', id=str(task.id), seconds=seconds, max_instances=max_instances, args=[task],
+                                  name=task_name, jobstore="redis")
+        except Exception:
+            raise
+    # scheduler.add_job(test, 'interval', seconds=2, max_instances=3, jobstore="redis")
     return scheduler
 
 
@@ -53,7 +55,8 @@ def run():
 
 
 def stop():
-    scheduler.shutdown()
+    scheduler.remove_all_jobs()
+    scheduler.shutdown(wait=False)
 
 
 def get_runningjobs():
@@ -67,7 +70,7 @@ def get_scheduler():
 if __name__ == '__main__':
     scheduler = add_job()
     assert isinstance(scheduler, BackgroundScheduler)
-    time.sleep(5)
+    time.sleep(10)
     scheduler.shutdown()
 
 

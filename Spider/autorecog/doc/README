@@ -9,6 +9,7 @@ b)cd libsvm-3.21下
 如果是Windows的系统，输入"Makefile",得到libsvm.dll，将其拷至autonews/windows和autorecog/windows的下
 3、注释掉项目setting中的crsf中间件
 4、在setting.py中加入APPEND_SLASH = False(这个还是不要加比较好)
+5、在安装redis的系统中键入sysctl vm.overcommit_memory=1
 
 ======================================
                 API説明
